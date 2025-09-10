@@ -1,11 +1,10 @@
 import os
 import logging
+import llm
 from muckrock import MuckRock
-from google import genai
 
 MUCKROCK_USERNAME = os.environ.get("MUCKROCK_USERNAME")
 MUCKROCK_PASSWORD = os.environ.get("MUCKROCK_PASSWORD")
-GEMINI_MODEL = "gemini-2.5-flash"
 MAX_REQUESTS = 100
 
 if not MUCKROCK_USERNAME or not MUCKROCK_PASSWORD:
@@ -13,22 +12,46 @@ if not MUCKROCK_USERNAME or not MUCKROCK_PASSWORD:
 
 logging.basicConfig(level=logging.ERROR)
 client = MuckRock(MUCKROCK_USERNAME, MUCKROCK_PASSWORD, loglevel=logging.INFO)
-gemini_client = genai.Client()
+
+
+def select_model():
+    """Prompt user to select a model, fallback to default on invalid input."""
+    models = llm.get_models()  # returns a list of model objects
+    if not models:
+        print("No models found, using default model.")
+        return llm.get_model()
+
+    print("\nAvailable models:")
+    for idx, model in enumerate(models, start=1):
+        # Use str(model) for display; fallback to 'unknown' if needed
+        name = getattr(model, "id", None) or str(model) or f"Model {idx}"
+        print(f"{idx}. {name}")
+
+    choice = input("Choose a model by number (press Enter for default): ").strip()
+    if not choice:
+        return llm.get_model()  # default
+
+    # Try to parse user input as integer index
+    try:
+        index = int(choice)
+        if 1 <= index <= len(models):
+            return models[index - 1]
+    except ValueError:
+        pass
+
+    # Invalid input — fallback
+    print("Invalid input, using default model.")
+    return llm.get_model()
+
 
 def select_jurisdiction(client):
     narrow = input("Do you want to narrow the search to a specific state or only federal agencies? (y/n): ").strip().lower()
     if narrow != "y":
-        return None  # no filtering
+        return None
 
     while True:
         abbrev = input("Enter the jurisdiction abbreviation (e.g., MA, IL, send USA for federal): ").strip().upper()
-
-        # Check if the abbreviation is USA -> level f
-        if abbrev == "USA":
-            level = "f"
-        else:
-            level = "s"
-
+        level = "f" if abbrev == "USA" else "s"
         jurisdictions = client.jurisdictions.list(abbrev=abbrev, level=level)
 
         if not jurisdictions:
@@ -49,25 +72,26 @@ def search_requests(topic, jurisdiction_id=None, limit=MAX_REQUESTS):
           (f" in this jurisdiction" if jurisdiction_id else ""))
     return requests
 
+
 def filter_requests(requests):
     success_status = ["done", "partial"]
     successful = [r for r in requests if r.status in success_status]
     unsuccessful = [r for r in requests if r.status not in success_status]
     return successful, unsuccessful
 
-def generate_suggestion(topic, requests):
+
+def generate_suggestion(model, topic, requests):
     successful, _ = filter_requests(requests)
     if not successful:
         print("No successful requests found to use as examples.")
         return None
-    count = len(successful)
 
-    # Limit to MAX_REQUESTS
+    count = len(successful)
     if count > MAX_REQUESTS:
-        print(f"{count} successful requests found, but only sending the most recent {MAX_REQUESTS} to Gemini for parsing…")
+        print(f"{count} successful requests found, but only sending the most recent {MAX_REQUESTS} to the model for parsing…")
         successful = successful[:MAX_REQUESTS]
     else:
-        print(f"Sending {count} successful request{'s' if count != 1 else ''} to Gemini for parsing…")
+        print(f"Sending {count} successful request{'s' if count != 1 else ''} to the model for parsing…")
 
     text_examples = "\n\n".join(
         f"Title: {r.title}\nBody: {r.requested_docs or '[No text available]'}" for r in successful
@@ -85,12 +109,8 @@ def generate_suggestion(topic, requests):
         Avoid splitting into a title and body. 
     """
 
-    response = gemini_client.models.generate_content(
-        model=GEMINI_MODEL,
-        contents=prompt
-    )
-
-    return response.text
+    response = model.prompt(prompt)
+    return response.text().strip()
 
 
 def choose_agency(jurisdiction_id=None):
@@ -100,15 +120,12 @@ def choose_agency(jurisdiction_id=None):
             name=query,
             jurisdiction__id=jurisdiction_id
         )
-
-        # Post-filter to only approved agencies
         approved_agencies = [a for a in agencies if getattr(a, "status", None) == "approved"]
 
         if not approved_agencies:
             print(f"No approved agencies found for '{query}'. Try again.")
             continue
 
-        # Show first 5 approved results
         agencies_to_show = approved_agencies[:5]
         print("\nSelect an agency:")
         for idx, agency in enumerate(agencies_to_show, start=1):
@@ -120,8 +137,6 @@ def choose_agency(jurisdiction_id=None):
             continue
 
         return agencies_to_show[int(choice) - 1].id
-
-
 
 
 def choose_organization():
@@ -161,17 +176,17 @@ def file_request(suggested_request, jurisdiction_id=None):
         "agencies": [agency_id],
     }
 
-    new_request = client.requests.create(**new_request_data)
+    client.requests.create(**new_request_data)
     print("\nRequest filed successfully!")
 
 
-
 def main():
+    model = select_model()
     topic = input("Enter the topic you want to file a FOIA request about: ").strip()
     jurisdiction_id = select_jurisdiction(client)
     print(f"Searching for FOIA requests about: {topic}")
     requests = search_requests(topic, jurisdiction_id=jurisdiction_id)
-    suggested_request = generate_suggestion(topic, requests)
+    suggested_request = generate_suggestion(model, topic, requests)
 
     if suggested_request:
         print("\nSuggested FOIA request:\n")
