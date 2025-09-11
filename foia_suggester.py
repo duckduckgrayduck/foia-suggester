@@ -8,7 +8,9 @@ MUCKROCK_PASSWORD = os.environ.get("MUCKROCK_PASSWORD")
 MAX_REQUESTS = 100
 
 if not MUCKROCK_USERNAME or not MUCKROCK_PASSWORD:
-    raise ValueError("Please set MUCKROCK_USERNAME and MUCKROCK_PASSWORD as environment variables.")
+    raise ValueError(
+        "Please set MUCKROCK_USERNAME and MUCKROCK_PASSWORD as environment variables."
+    )
 
 logging.basicConfig(level=logging.ERROR)
 client = MuckRock(MUCKROCK_USERNAME, MUCKROCK_PASSWORD, loglevel=logging.INFO)
@@ -45,17 +47,31 @@ def select_model():
 
 
 def select_jurisdiction(client):
-    narrow = input("Do you want to narrow the search to a specific state or only federal agencies? (y/n): ").strip().lower()
+    narrow = (
+        input(
+            "Do you want to narrow the search to a specific state or only federal agencies? (y/n): "
+        )
+        .strip()
+        .lower()
+    )
     if narrow != "y":
         return None
 
     while True:
-        abbrev = input("Enter the jurisdiction abbreviation (e.g., MA, IL, send USA for federal): ").strip().upper()
+        abbrev = (
+            input(
+                "Enter the jurisdiction abbreviation (e.g., MA, IL, send USA for federal): "
+            )
+            .strip()
+            .upper()
+        )
         level = "f" if abbrev == "USA" else "s"
         jurisdictions = client.jurisdictions.list(abbrev=abbrev, level=level)
 
         if not jurisdictions:
-            print(f"No jurisdiction found with abbreviation '{abbrev}'. Please try again.")
+            print(
+                f"No jurisdiction found with abbreviation '{abbrev}'. Please try again."
+            )
             continue
 
         jurisdiction = jurisdictions[0]
@@ -68,8 +84,10 @@ def search_requests(topic, jurisdiction_id=None):
     if jurisdiction_id:
         params["jurisdiction"] = jurisdiction_id
     requests = client.requests.list(**params)
-    print(f"Found {requests.count} requests for topic '{topic}'" +
-          (f" in this jurisdiction" if jurisdiction_id else ""))
+    print(
+        f"Found {requests.count} requests for topic '{topic}'"
+        + (f" in this jurisdiction" if jurisdiction_id else "")
+    )
     return requests
 
 
@@ -88,13 +106,18 @@ def generate_suggestion(model, topic, requests):
 
     count = len(successful)
     if count > MAX_REQUESTS:
-        print(f"{count} successful requests found, but only sending the most recent {MAX_REQUESTS} to the model for parsing…")
+        print(
+            f"{count} successful requests found, but only sending the most recent {MAX_REQUESTS} to the model for parsing…"
+        )
         successful = successful[:MAX_REQUESTS]
     else:
-        print(f"Sending {count} successful request{'s' if count != 1 else ''} to the model for parsing…")
+        print(
+            f"Sending {count} successful request{'s' if count != 1 else ''} to the model for parsing…"
+        )
 
     text_examples = "\n\n".join(
-        f"Title: {r.title}\nBody: {r.requested_docs or '[No text available]'}" for r in successful
+        f"Title: {r.title}\nBody: {r.requested_docs or '[No text available]'}"
+        for r in successful
     )
 
     prompt = f"""
@@ -116,11 +139,10 @@ def generate_suggestion(model, topic, requests):
 def choose_agency(jurisdiction_id=None):
     while True:
         query = input("Enter the agency name to search: ").strip()
-        agencies = client.agencies.list(
-            name=query,
-            jurisdiction__id=jurisdiction_id
-        )
-        approved_agencies = [a for a in agencies if getattr(a, "status", None) == "approved"]
+        agencies = client.agencies.list(name=query, jurisdiction__id=jurisdiction_id)
+        approved_agencies = [
+            a for a in agencies if getattr(a, "status", None) == "approved"
+        ]
 
         if not approved_agencies:
             print(f"No approved agencies found for '{query}'. Try again.")
