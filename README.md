@@ -1,26 +1,36 @@
 # FOIA Request Suggester
 
 This script is a demonstration of using the MuckRock Requests API in conjunction with LLMs. This script generates FOIA (Freedom of Information Act) or public records request language based on past successful requests from [MuckRock](https://www.muckrock.com/).  
-It uses the **MuckRock Requests API** to fetch requests that were marked as complete in the past and allows you to pass these successful requests to Simon Willison's **llm** library to generate a suggested request draft based on this input. It allows you to select a model you'd like to run the prompt on. 
+It uses the **MuckRock Requests API** to fetch requests that were marked as complete in the past and allows you to pass these successful requests to Simon Willison's **llm** library to generate a suggested request draft based on this input. It allows you to select a model you'd like to run the prompt on.
 The script can also file the request directly to MuckRock once the user approves.
 
 ---
+
+## Install
+
+```sh
+pip install git+https://github.com/duckduckgrayduck/foia-suggester.git
+
+# or uv, which is better and faster
+uv add git+https://github.com/duckduckgrayduck/foia-suggester.git
+```
 
 ## Requirements
 
 - Python 3.9+
 - pip
 - A MuckRock account with valid login credentials.
-- Your credentials should be stored as local environment variables under MUCKROCK_USERNAME and MUCKROCK_PASSWORD for this script to work. 
+- Your credentials should be stored as local environment variables under MUCKROCK_USERNAME and MUCKROCK_PASSWORD for this script to work.
 - [llm](https://llm.datasette.io/en/stable/setup.html)
-- For any model that requries API calls that you select to use this tool with, you will need to [set API keys](https://llm.datasette.io/en/stable/setup.html#api-key-management). For more assistance with installing more models, [consult the documentation on plugins](https://llm.datasette.io/en/stable/plugins/index.html). 
-- The python-muckrock package installed in your local environment (pip install python-muckrock). 
+- For any model that requries API calls that you select to use this tool with, you will need to [set API keys](https://llm.datasette.io/en/stable/setup.html#api-key-management). For more assistance with installing more models, [consult the documentation on plugins](https://llm.datasette.io/en/stable/plugins/index.html).
+- The python-muckrock package installed in your local environment (pip install python-muckrock).
+
 ---
 
 ## Example Flow
 
 ```console
-s@s:~/Downloads$ python3 foia_suggester.py 
+s@s:~/Downloads$ python3 foia_suggester.py
 
 Available models:
 1. OpenAI Chat: gpt-4o
@@ -162,7 +172,7 @@ Select an organization to bill the request under:
 2. sanjin (ID 24695)
 3. test new muck org (ID 166692)
 Choose an organization by number: 1
-Enter a short title for your request: Test Request    
+Enter a short title for your request: Test Request
 https://www.muckrock.com/foi/multirequest/test-request-162350/
 
 Request filed successfully!

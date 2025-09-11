@@ -1,0 +1,12 @@
+[project]
+name = "foia-suggester"
+version = "0.1.0"
+description = "Use the MuckRock API and llm to suggest FOIA ideas"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "google-genai>=1.35.0",
+    "llm>=0.27.1",
+    "python-dateutil>=2.9.0.post0",
+    "python-muckrock>=2.2.0",
+]
