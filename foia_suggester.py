@@ -63,8 +63,8 @@ def select_jurisdiction(client):
         return jurisdiction.id
 
 
-def search_requests(topic, jurisdiction_id=None, limit=MAX_REQUESTS):
-    params = {"search": topic, "limit": limit}
+def search_requests(topic, jurisdiction_id=None):
+    params = {"search": topic}
     if jurisdiction_id:
         params["jurisdiction"] = jurisdiction_id
     requests = client.requests.list(**params)
